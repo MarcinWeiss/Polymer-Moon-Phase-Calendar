@@ -1,0 +1,216 @@
+<link href="./bower_components/polymer/polymer.html" rel="import">
+<link href="./bower_components/iron-ajax/iron-ajax.html" rel="import">
+<link href="./bower_components/paper-button/paper-button.html" rel="import">
+<link href="./bower_components/iron-image/iron-image.html" rel="import">
+
+<dom-module id="moon-phase" > 
+    <style>
+        #pattern {
+            position: absolute;
+            width:0;
+            height:0;
+        }
+        #moon > ::content #moon_shadow { 
+            fill:rgba(0, 0, 0, 0.66);
+            stroke:#fff;
+            stroke-width:1px; 
+        }
+    </style>
+  <template> 
+    <style>
+        #moon_disk { 
+            fill:url(#image);
+        }
+    </style> 
+    <svg id='pattern' xmlns="http://www.w3.org/2000/svg" version="1.1">
+      <defs>
+        <pattern id='image' width="1" height="1" viewBox="0 0 64 64">
+          <image xlink:href='../moon.png' width="64" height="64" preserveAspectRatio="none"></image>
+        </pattern>
+      </defs>
+    </svg>
+    
+    <div title="{{ title }}">
+        <svg id="moon" style="{{computeStyle(size)}}" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" version="1.1" > 
+            <div id="moon_fallback">
+            </div>
+        </svg>
+    </div>
+  </template>
+  <script type="text/javascript" src="suncalc.js" charset="UTF-8"></script>
+  <script>
+    Polymer({
+        is: "moon-phase",
+        properties: {
+            date: {
+                type: Date,
+                notify: true
+            },
+            size: {
+                type: String,
+                notify: true,
+                value: "64"
+            },
+            title: {
+                type: String,
+                notify: true,
+                computed: 'getTitle(date)'
+            },
+            language: {
+                type: String,
+                notify: true,
+                value: "pl"
+            },
+            phase: {
+                type: Number,
+                notify: true,
+                computed: "setPhase(date)"
+            }
+        },
+        computeStyle: function(size){
+            this.$.moon.style = {};
+            this.$.moon.style.width = size+"px";
+            this.$.moon.style.height = size+"px";
+        },
+        ready: function(page, items) {
+        this.computeStyle(this.size);
+        },
+        handleResponse: function(e) {
+           this.categories = e.detail.response;
+        },
+        getTitle: function(date) {
+            var moonIllumination = SunCalc.getMoonIllumination(date);
+            var phase = moonIllumination.phase;
+            
+            var title = date.toLocaleDateString() + " widoczność: " + (moonIllumination.fraction*100).toFixed(2) +"%, faza: "+this.getPhaseName(phase);
+            return title;
+        },
+        getPhaseName: function(phase){
+            if (phase <= 0.25) {
+                if(this.language == "pl"){
+                    return "Nów";
+                } else if (this.language == "en"){
+                    return "New Moon";
+                }
+            } else if (phase <= 0.50) { 
+                if(this.language == "pl"){
+                    return "Pierwsza kwadra";
+                } else if (this.language == "en"){
+                    return "First Quarter";
+                }
+            } else if (phase <= 0.75) {
+                if(this.language == "pl"){
+                    return "pełnia";
+                } else if (this.language == "en"){
+                    return "Full Moon";
+                }
+            } else if (phase <= 1) {
+                if(this.language == "pl"){
+                    return "Nów";
+                } else if (this.language == "en"){
+                    return "Ostatnia kwadra";
+                }
+            }
+        },
+        setPhase: function(date) {
+            if (typeof date == "undefined" || date == "") {
+                return;
+            }
+            var phase = SunCalc.getMoonIllumination(date).phase;
+            var sweep = [];
+            var mag;
+            // the "sweep-flag" and the direction of movement change every quarter moon
+            // zero and one are both new moon; 0.50 is full moon
+            if (phase <= 0.25) {
+                sweep = [ 1, 1 ];
+                mag = 20 - 20 * phase * 4
+            } else if (phase <= 0.50) { 
+                sweep = [ 0, 1 ];
+                mag = 20 * (phase - 0.25) * 4
+            } else if (phase <= 0.75) {
+                sweep = [ 1, 0 ];
+                mag = 20 - 20 * (phase - 0.50) * 4
+            } else if (phase <= 1) {
+                sweep = [ 0, 0 ];
+                mag = 20 * (phase - 0.75) * 4
+            } else { 
+                exit; 
+            }
+            var unicode_moon;
+            if (phase <= 0.0625 || phase > 0.9375) {
+                unicode_moon = "\uD83C\uDF11";
+            } else if (phase <= 0.1875) {
+                unicode_moon = "\uD83C\uDF12";
+            } else if (phase <= 0.3125) {
+                unicode_moon = "\uD83C\uDF13";
+            } else if (phase <= 0.4375) {
+                unicode_moon = "\uD83C\uDF14";
+            } else if (phase <= 0.5625) {
+                unicode_moon = "\uD83C\uDF15";
+            } else if (phase <= 0.6875) {
+                unicode_moon = "\uD83C\uDF16";
+            } else if (phase <= 0.8125) {
+                unicode_moon = "\uD83C\uDF17";
+            } else if (phase <= 0.9375) {
+                unicode_moon = "\uD83C\uDF18";
+            }
+            
+            // IE does not work with .innnerHTML'ing the title
+            // http://stackoverflow.com/questions/12114477/how-do-i-correctly-insert-unicode-in-an-html-title-using-javascript
+            // document.getElementsByTagName("title")[0].innerHTML = document.title + '  &#x' + unicode_moon + ";";
+            // http://stackoverflow.com/questions/3059166/does-string-fromcharcodedecimal-value-in-javascript-supports-extended-characte
+            //document.title = document.title + " " + unicode_moon;
+            var svg = this.$.moon;
+            if (svg != false && svg != null) {
+                while (svg.hasChildNodes()) {
+                    svg.removeChild(svg.lastChild);
+                }
+                // http://stackoverflow.com/questions/654112/how-do-you-detect-support-for-vml-or-svg-in-a-browser/5493614#5493614
+                // https://github.com/Modernizr/Modernizr/blob/master/modernizr.js
+                function supportsSVG() {
+                  return !!document.createElementNS && !!document.createElementNS('http://www.w3.org/2000/svg', "svg").createSVGRect;
+                }
+                function supportsVML() {
+                    if (typeof supportsVml.supported == "undefined") {
+                        var a = document.body.appendChild(document.createElement('div'));
+                        a.innerHTML = '<v:shape id="vml_flag1" adj="1" />';
+                        var b = a.firstChild;
+                        b.style.behavior = "url(#default#VML)";
+                        supportsVml.supported = b ? typeof b.adj == "object": true;
+                        a.parentNode.removeChild(a);
+                    }
+                    return supportsVml.supported;
+                }
+                if (supportsSVG()) {  
+                  // http://www.w3.org/TR/SVG/paths.html#PathDataEllipticalArcCommands
+                  var d = "m100,0 ";
+                  d = d + "a" + mag + ",20 0 1," + sweep[0] + " 0,150 ";
+                  d = d + "a20,20 0 1," + sweep[1] + " 0,-150";
+                  // http://www.i-programmer.info/programming/graphics-and-imaging/3254-svg-javascript-and-the-dom.html
+                  var xmlns = "http://www.w3.org/2000/svg";
+                  
+                  var moon = document.createElementNS(xmlns, 'path');
+                  moon.setAttribute('id', 'moon_disk');
+                  moon.setAttribute('d', "m100,0 a20,20 0 1,1 0,150 a20,20 0 1,1 0,-150");
+                  
+                  var shadow = document.createElementNS(xmlns, 'path');
+                  shadow.setAttribute('id', 'moon_shadow');
+                  shadow.setAttribute('d', d);
+                  
+                  svg.setAttribute('height', window.screen.availHeight * 0.8);
+                  svg.setAttribute('width', window.screen.availWidth * 0.8);
+                  svg.appendChild(moon);
+                  svg.appendChild(shadow);
+                } else if (supportsVML()) {
+                  // http://vectorconverter.svn.sourceforge.net/viewvc/vectorconverter/trunk/svg2vml.xsl?revision=2&view=markup
+                  // http://stackoverflow.com/questions/7677145/calling-xslt-from-javascript
+                  // this will be IE almost always anyways, so could use IE specific xslt
+                  
+                    var fallback = this.$.moon_fallback;
+                    fallback.innerText = unicode_moon;
+                }
+            }
+        }
+    });
+  </script>
+</dom-module>

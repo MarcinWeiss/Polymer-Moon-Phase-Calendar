@@ -1,0 +1,281 @@
+<link href="./bower_components/polymer/polymer.html" rel="import">
+<link href="./bower_components/paper-icon-button/paper-icon-button.html" rel="import">
+<link href="./bower_components/iron-icons/iron-icons.html" rel="import">
+
+<link href="./moon-calendar-day.html" rel="import">
+
+<dom-module id="moon-calendar" attributes="date language">
+    <style shim-shadowdom>
+        @media (min-width: 30em) {
+            .row { width: 100%; display: table; table-layout: fixed; }
+            .col { display: table-cell; 
+            border-style: solid;
+            border-width: 1px;}
+        }
+        
+        .cell {
+            max-width: 96px;
+            max-height: 96px;
+            min-width: 60px;
+            max-height: 96px;
+        }
+        
+        :host {
+            max-width: 672px;
+            max-height: 624px;
+        }
+        .calendar {
+            max-width: 672px;
+            max-height: 624px;
+        }
+        
+        .day_name {
+            text-align: center;
+            vertical-align: middle;
+        }
+        
+        paper-button.month{
+            height: 20px;
+        }
+        .current, .not_current{
+            height: 100%;
+        }
+        .current{
+            background: black;
+            color: gray;
+            border-style: solid;
+            border-width: 1px;
+            border-color: white;
+        }
+        .not_current{
+            background: gray;
+        }
+        
+        .day_name{
+            background: white;
+            font-weight: bold;
+        }
+        
+        .controls{
+            width:360px;
+            margin-right: auto;
+            margin-left:auto;
+        }
+        
+        .navigator_button {
+            background: white;
+            border-radius: 20px;
+        }
+    </style>
+    <template>
+        
+        <div class="calendar">
+        
+            <div class="controls">
+                <paper-icon-button class="navigator_button" icon="arrow-back" alt="arrow-back" title="arrow-back" on-tap="prevMonth"></paper-icon-button>
+                
+                <select name="month" id="month" on-change="selectMonth" size="1" selectedIndex ="{{ month }}">
+                    <template is="dom-repeat" items="{{ getMonthNames(language) }}" as="monthName" index-as="index">
+                        <option selected="{{ isSelectedMonth(index, month) }}" value="{{ index }}">{{ monthName }}</option>
+                    </template>
+                </select>
+                <input type="number" name="year" on-change="selectYear" value="{{ year }}">
+                
+                <paper-icon-button class="navigator_button" icon="arrow-forward" alt="arrow-forward" title="arrow-forward" on-tap="nextMonth"></paper-icon-button>
+            </div>
+            
+            <div class="row">
+                <template is="dom-repeat" items="{{ getDaysNames(language) }}" as="day"> 
+                    <div class="col day_name">{{ day }}</div>
+                </template>
+            </div>
+
+            <template is="dom-repeat" items="{{ weeks }}" as="week">
+                <div class="row">
+                    <template is="dom-repeat" items="{{ week }}" as="day"> 
+                            <div class="col">
+                                <div class="cell">
+                                    <div class$="{{ getDayStyle(day) }}">
+                                        <moon-calendar-day date="{{ day }}" ></moon-calendar-day>
+                                    </div>
+                                </div>
+                            </div>
+                    </template>
+                </div>
+            </template>
+        </div>
+        
+        <iron-ajax  id="ajax_categories"
+                    url="../../php/location_from_timezone.php"
+                    handleAs="json"
+                    on-response="handleResponse">
+        </iron-ajax>
+    </template>
+    <script type="text/javascript" >
+        Polymer({
+            properties: {
+                weeks: {
+                  type: Array,
+                  computed: 'getWeeks(date)',
+                  notify: true
+                }, 
+                year: {
+                  type: Number,
+                  notify: true
+                }, 
+                month: {
+                  type: Number,
+                  computed: 'getMonth(date)',
+                  notify: true
+                },
+                date: {
+                  type: Date,
+                  notify: true
+                },
+                monthNamesTranslated: {
+                    value: {
+                        en: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+                        pl: ["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"]
+                    }
+                },
+                daysNames: {
+                    type: Array,
+                    computed: 'getDaysNames(language)'
+                },
+                daysNamesTranslated: {
+                    value: {
+                        en: ["Mon", "Tues", "Wed", "Thu", "Fri", "Sat", "Sun"],
+                        pl: ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "N"]
+                    }
+                },
+                language: {
+                    type: String,
+                    value: "pl"
+                }
+            },
+            is: "moon-calendar",
+            ready: function() {
+                console.log(this.is," ready");
+            },
+            isSelectedMonth: function(index, month){
+                var isSelected = index == month;
+                return (isSelected);
+            },
+            getMonthNames: function(language) {
+                return this.monthNamesTranslated[language];
+            },
+            getDaysNames: function(language) {
+                return this.daysNamesTranslated[language];
+            },
+            getMonth: function(date) {
+                var month = date.getMonth();
+                return month;
+            },
+            getYear: function(date) {
+                var year = date.getFullYear();
+                return year;
+            },
+            getWeeks: function(date) {
+                var currentMonth = date.getMonth();
+                this.month = currentMonth;
+                
+                this.year = date.getFullYear();
+                
+                var prevMonth = currentMonth-1;
+                var prevYear = date.getFullYear();
+                
+                if(prevMonth < 0){
+                    prevMonth = 11;
+                    prevYear -= 1;
+                }
+                var daysInPrevMonth = this.calcDaysInMonth(prevMonth, prevYear);
+                
+                var nextMonth = currentMonth+1;
+                var nextYear = date.getFullYear();
+                if(nextMonth > 11){
+                    nextMonth = 0;
+                    nextYear += 1;
+                }
+                
+                var firstDayOfCurrMonth = new Date(date.getTime());
+                firstDayOfCurrMonth.setDate(1);
+                
+                var daysBefore = firstDayOfCurrMonth.getDay()-1;
+                if(firstDayOfCurrMonth.getDay() == 0){
+                    daysBefore = 6;
+                }
+                if(daysBefore<=0){
+                    daysBefore = 7;
+                }
+                var daysInMonth = this.calcDaysInMonth(currentMonth, this.year);
+                var daysAfter = 42 - daysInMonth - daysBefore 
+                
+                var days = [];
+                
+                var index=0
+                for(; index<daysBefore; index++){
+                    var day = daysInPrevMonth-daysBefore+index+1;
+                    days[index] = new Date(prevYear, prevMonth, day, 0, 0, 0, 0);
+                }
+                
+                var offset = index;
+                for(; index<offset+daysInMonth; index++){
+                    var day = index-offset+1;
+                    days[index] = new Date(date.getFullYear(), currentMonth, day, 0, 0, 0, 0);
+                }
+                
+                offset = index;
+                for(; index<offset+daysAfter; index++){
+                    var day = index-offset+1;
+                    days[index] = new Date(nextYear, nextMonth, day, 0, 0, 0, 0);
+                }
+                
+                var weeks = [];
+                
+                var i =0;
+                while(days.length){
+                    weeks[i]= days.splice(0,7);
+                    i++;
+                }
+                
+                return weeks;
+            },
+            calcDaysInMonth: function (month,year) 
+            {
+                var d = new Date(year, month+1, 0);
+                return d.getDate();
+            },
+            selectMonth: function(e) {
+                var date = new Date();
+                date.setMonth(e.target.value);
+                date.setDate(1);
+                date.setFullYear(this.date.getFullYear());
+                this.date = date;
+            },
+            selectYear: function(e) {
+                var date = new Date();
+                date.setMonth(this.date.getMonth());
+                date.setDate(1);
+                date.setFullYear(e.target.value);
+                this.date = date;
+            },
+            getDayStyle: function(date) {
+                if (date.getMonth() == this.month){
+                    return "current";
+                } else {
+                    return "not_current";
+                }
+            },
+            prevMonth: function() {
+                var date = new Date(this.date);
+                date.setMonth(this.date.getMonth()-1);
+                this.date = date;
+            },
+            nextMonth: function() {
+                var date = new Date(this.date);
+                date.setMonth(this.date.getMonth()+1);
+                this.date = date;
+            }
+        });
+      </script>
+</dom-module>

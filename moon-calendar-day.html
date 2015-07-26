@@ -1,0 +1,34 @@
+<link href="./bower_components/polymer/polymer.html" rel="import">
+<link href="./moon-phase.html" rel="import">
+
+<dom-module id="moon-calendar-day">
+    <template>
+        <style>
+            .day-number{
+                float:right;
+                padding-right: 10px;
+                padding-top: 10px;
+                margin-left: 40px;
+                color: white;
+            }
+        </style>
+        <div class="day-number">{{ computeDay(date) }}</div>
+        <moon-phase date="{{ date }}"></moon-phase>
+    </template>
+    <script>
+        Polymer({
+            is: "moon-calendar-day",
+            properties: {
+                date: {
+                    type: Date,
+                    notify: true
+                }
+            },
+            ready: function() {
+            },
+            computeDay: function(date){
+                return date.getDate();
+            }
+        });
+      </script>
+</dom-module>
