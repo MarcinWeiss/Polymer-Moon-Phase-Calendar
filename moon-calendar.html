@@ -74,12 +74,12 @@
             <div class="controls">
                 <paper-icon-button class="navigator_button" icon="arrow-back" alt="arrow-back" title="arrow-back" on-tap="prevMonth"></paper-icon-button>
                 
-                <select name="month" id="month" on-change="selectMonth" size="1" selectedIndex ="{{ month }}">
+                <!-- <select name="month" id="month" on-change="selectMonth" size="1" selectedIndex ="{{ month }}">
                     <template is="dom-repeat" items="{{ getMonthNames(language) }}" as="monthName" index-as="index">
                         <option selected="{{ isSelectedMonth(index, month) }}" value="{{ index }}">{{ monthName }}</option>
                     </template>
-                </select>
-                <input type="number" name="year" on-change="selectYear" value="{{ year }}">
+                </select> -->
+                <input id="monthInput" type="month" name="month" on-change="selectMonth" value="{{ yearMonth }}">
                 
                 <paper-icon-button class="navigator_button" icon="arrow-forward" alt="arrow-forward" title="arrow-forward" on-tap="nextMonth"></paper-icon-button>
             </div>
@@ -111,6 +111,7 @@
                     on-response="handleResponse">
         </iron-ajax>
     </template>
+    
     <script type="text/javascript" >
         Polymer({
             properties: {
@@ -123,6 +124,10 @@
                   type: Number,
                   notify: true
                 }, 
+                yearMonth: {
+                  type: String,
+                  notify: true
+                },
                 month: {
                   type: Number,
                   computed: 'getMonth(date)',
@@ -156,6 +161,19 @@
             is: "moon-calendar",
             ready: function() {
                 console.log(this.is," ready");
+                console.log(this.yearMonth);
+            },
+            getYearMonth: function(year, month) {
+                if(month < 10){
+                    month = "0"+month;
+                }
+                var result = ""+year+"-"+month;
+                if(this.polyfillUsed){
+                    console.log(result);
+                    console.log(this.$.monthInput);
+                    console.log(this.$.monthInput.value);
+                }
+                return result;
             },
             isSelectedMonth: function(index, month){
                 var isSelected = index == month;
@@ -169,6 +187,7 @@
             },
             getMonth: function(date) {
                 var month = date.getMonth();
+                this.yearMonth = this.getYearMonth(date.getFullYear(), date.getMonth());
                 return month;
             },
             getYear: function(date) {
@@ -247,16 +266,10 @@
             },
             selectMonth: function(e) {
                 var date = new Date();
-                date.setMonth(e.target.value);
+                var value = e.target.value.split("-");
+                date.setMonth(value[1]);
                 date.setDate(1);
-                date.setFullYear(this.date.getFullYear());
-                this.date = date;
-            },
-            selectYear: function(e) {
-                var date = new Date();
-                date.setMonth(this.date.getMonth());
-                date.setDate(1);
-                date.setFullYear(e.target.value);
+                date.setFullYear(value[0]);
                 this.date = date;
             },
             getDayStyle: function(date) {
@@ -270,11 +283,13 @@
                 var date = new Date(this.date);
                 date.setMonth(this.date.getMonth()-1);
                 this.date = date;
+                this.$.monthInput.stepDown();
             },
             nextMonth: function() {
                 var date = new Date(this.date);
                 date.setMonth(this.date.getMonth()+1);
                 this.date = date;
+                this.$.monthInput.stepUp();
             }
         });
       </script>
